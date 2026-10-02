@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algorithm Visualizer</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="container">
+            <h1>Algorithm Visualizer</h1>
+            <p>Visualize sorting and searching algorithms step by step.</p>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Controls -->
+        <section class="controls">
+
+            <div class="control-group">
+                <label for="algorithm">Algorithm</label>
+                <select id="algorithm">
+                    <optgroup label="Sorting">
+                        <option value="bubble">Bubble Sort</option>
+                        <option value="selection">Selection Sort</option>
+                        <option value="insertion">Insertion Sort</option>
+                        <option value="merge">Merge Sort</option>
+                        <option value="quick">Quick Sort</option>
+                        <option value="heap">Heap Sort</option>
+                    </optgroup>
+
+                    <optgroup label="Searching">
+                        <option value="linear">Linear Search</option>
+                        <option value="binary">Binary Search</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="arraySize">
+                    Array Size
+                    <span id="arraySizeValue">30</span>
+                </label>
+                <input
+                    type="range"
+                    id="arraySize"
+                    min="10"
+                    max="100"
+                    value="30"
+                >
+            </div>
+
+            <div class="control-group">
+                <label for="speed">
+                    Speed
+                    <span id="speedValue">Medium</span>
+                </label>
+                <input
+                    type="range"
+                    id="speed"
+                    min="1"
+                    max="5"
+                    value="3"
+                >
+            </div>
+
+            <div class="button-group">
+                <button id="generateBtn">Generate Array</button>
+                <button id="startBtn" class="primary-btn">▶ Start</button>
+                <button id="resetBtn">↻ Reset</button>
+            </div>
+
+        </section>
+
+        <!-- Visualizer -->
+        <section class="visualizer-card">
+
+            <div id="arrayContainer" class="array-container">
+                <!-- JavaScript will generate the bars here -->
+            </div>
+
+        </section>
+
+        <!-- Statistics -->
+        <section class="stats">
+
+            <div class="stat-card">
+                <span class="stat-label">Comparisons</span>
+                <span id="comparisons" class="stat-value">0</span>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Swaps</span>
+                <span id="swaps" class="stat-value">0</span>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Steps</span>
+                <span id="steps" class="stat-value">0</span>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Status</span>
+                <span id="status" class="stat-value">Ready</span>
+            </div>
+
+        </section>
+
+        <!-- Algorithm Information -->
+        <section class="algorithm-info">
+
+            <div>
+                <h2 id="algorithmTitle">Bubble Sort</h2>
+                <p id="algorithmDescription">
+                    Repeatedly compares adjacent elements and swaps them
+                    if they are in the wrong order.
+                </p>
+            </div>
+
+            <div class="complexity-grid">
+
+                <div>
+                    <span>Best</span>
+                    <strong id="bestComplexity">O(n)</strong>
+                </div>
+
+                <div>
+                    <span>Average</span>
+                    <strong id="averageComplexity">O(n²)</strong>
+                </div>
+
+                <div>
+                    <span>Worst</span>
+                    <strong id="worstComplexity">O(n²)</strong>
+                </div>
+
+                <div>
+                    <span>Space</span>
+                    <strong id="spaceComplexity">O(1)</strong>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer>
+        <p>Algorithm Visualizer • Built with HTML, CSS &amp; JavaScript</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+
+</body>
+</html>
