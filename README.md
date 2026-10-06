@@ -4,10 +4,7 @@ An interactive web app that visualizes sorting and searching algorithms step by 
 
 **🔗 Live Demo:** [https://algorithmvisualizer3.netlify.app/](https://algorithmvisualizer3.netlify.app/)
 
-![Algorithm Visualizer Screenshot](screenshots/preview.png)
-
-> Add a screenshot or GIF of the app at `screenshots/preview.png` (or update the path above).
-
+<img width="700" height="443" alt="image" src="https://github.com/user-attachments/assets/9ab7dcee-4b89-49b4-a2f3-7ba70e205ea9" />
 ---
 
 ## Table of Contents
@@ -18,7 +15,6 @@ An interactive web app that visualizes sorting and searching algorithms step by 
 - [Colour Legend](#colour-legend)
 - [Technical Overview](#technical-overview)
 - [Project Structure](#project-structure)
-- [Running Locally](#running-locally)
 - [Deployment](#deployment)
 - [How the Animation Engine Works](#how-the-animation-engine-works)
 - [Future Improvements](#future-improvements)
@@ -154,22 +150,6 @@ algorithm-visualizer/
 ├── screenshots/
 │   └── preview.png     # (optional) Screenshot for this README
 └── README.md
-```
-
----
-
-## Running Locally
-
-No build tools or dependencies are needed.
-
-```bash
-# Clone the repository
-git clone https://github.com/YOUR-USERNAME/algorithm-visualizer.git
-cd algorithm-visualizer
-
-# Open index.html in your browser
-# Or serve it with any static server, for example:
-npx serve .
 ```
 
 ---
