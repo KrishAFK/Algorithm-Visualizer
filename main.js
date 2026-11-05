@@ -32,6 +32,27 @@ const els = {
     space: document.getElementById("spaceComplexity"),
 };
 
+/**
+ * Returns the button with the given id. If it isn't in the HTML yet,
+ * creates it (copying the Start button's styling) and places it after `afterEl`.
+ */
+function getOrCreateButton(id, label, afterEl) {
+    let btn = document.getElementById(id);
+    if (!btn) {
+        btn = document.createElement("button");
+        btn.id = id;
+        btn.type = "button";
+        // Same styling as Start, minus the primary (blue) highlight
+        btn.className = els.startBtn.className.replace("primary-btn", "").trim();
+        btn.textContent = label;
+        afterEl.insertAdjacentElement("afterend", btn);
+    }
+    return btn;
+}
+
+els.pauseBtn = getOrCreateButton("pauseBtn", "Pause", els.startBtn);
+els.stepBtn = getOrCreateButton("stepBtn", "Step", els.pauseBtn);
+
 /* =========================================================
    Algorithm Metadata
    ========================================================= */
@@ -112,6 +133,11 @@ let bars = [];           // Bar DOM elements (same order as array)
 let isRunning = false;
 let runId = 0;           // Incremented to cancel any running animation
 
+// Pause / step state
+let isPaused = false;
+let resumeWaiter = null; // Resolves the promise the algorithm is waiting on while paused
+let statusBeforePause = "";
+
 const stats = { comparisons: 0, swaps: 0, steps: 0 };
 
 // Thrown inside a running algorithm when the user presses Reset
@@ -133,14 +159,47 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function checkCancelled(id) {
+    if (id !== runId) throw new CancelError();
+}
+
+/** Returns a promise that resolves when the user presses Step, Resume or Reset. */
+function waitForUser() {
+    return new Promise((resolve) => {
+        resumeWaiter = resolve;
+    });
+}
+
+/** Wakes up the algorithm if it is waiting on the user. */
+function releaseWaiter() {
+    if (resumeWaiter) {
+        const resolve = resumeWaiter;
+        resumeWaiter = null;
+        resolve();
+    }
+}
+
 /**
- * Waits for the current speed delay. If Reset was pressed while waiting,
- * throws a CancelError so the running algorithm stops immediately.
+ * Called after every animated operation (compare, swap, write).
+ * - Running normally: waits for the current speed delay.
+ * - Paused: waits until the user presses Step (one operation) or Resume.
+ * If Reset was pressed while waiting, throws a CancelError so the running
+ * algorithm stops immediately.
  */
 async function pause() {
     const id = runId;
-    await sleep(getDelay());
-    if (id !== runId) throw new CancelError();
+
+    if (!isPaused) {
+        await sleep(getDelay());
+        checkCancelled(id);
+    }
+
+    // Paused (either already, or the user paused during the delay above).
+    // The highlighted bars stay visible until the user steps or resumes.
+    if (isPaused) {
+        await waitForUser();
+        checkCancelled(id);
+    }
 }
 
 function setStatus(text) {
@@ -278,7 +337,7 @@ async function finishSweep() {
     for (let i = 0; i < bars.length; i++) {
         bars[i].classList.add("sorted");
         await sleep(delay);
-        if (id !== runId) throw new CancelError();
+        checkCancelled(id);
     }
 }
 
@@ -431,11 +490,14 @@ async function heapSort() {
    ========================================================= */
 
 async function linearSearch() {
+    const id = runId;
     const targetIndex = randomInt(0, array.length - 1);
     const target = array[targetIndex];
-    setStatus(`Looking for ${target}`);
+    setStatus(isPaused ? `Paused - looking for ${target}` : `Looking for ${target}`);
+    statusBeforePause = `Looking for ${target}`;
     addClass([targetIndex], "active"); // Show which value we are hunting
     await sleep(Math.max(getDelay(), 300));
+    checkCancelled(id);
     removeClass([targetIndex], "active");
 
     for (let i = 0; i < array.length; i++) {
@@ -451,7 +513,8 @@ async function linearSearch() {
 async function binarySearch() {
     const targetIndex = randomInt(0, array.length - 1);
     const target = array[targetIndex];
-    setStatus(`Looking for ${target}`);
+    setStatus(isPaused ? `Paused - looking for ${target}` : `Looking for ${target}`);
+    statusBeforePause = `Looking for ${target}`;
 
     let low = 0;
     let high = array.length - 1;
@@ -504,7 +567,54 @@ function setControlsDisabled(disabled) {
     els.arraySize.disabled = disabled;
     els.generateBtn.disabled = disabled;
     els.startBtn.disabled = disabled;
-    // Speed slider and Reset stay enabled so they work mid-animation
+    // Speed slider, Reset, Pause and Step stay enabled so they work mid-animation
+    updatePlaybackButtons();
+}
+
+/** Keeps the Pause/Resume and Step buttons in sync with the current state. */
+function updatePlaybackButtons() {
+    els.pauseBtn.disabled = !isRunning;
+    els.pauseBtn.textContent = isPaused ? "Resume" : "Pause";
+    els.stepBtn.disabled = false;
+}
+
+function pauseVisualization() {
+    if (!isRunning || isPaused) return;
+    isPaused = true;
+    statusBeforePause = els.status.textContent;
+    setStatus("Paused");
+    updatePlaybackButtons();
+}
+
+function resumeVisualization() {
+    if (!isRunning || !isPaused) return;
+    isPaused = false;
+    setStatus(statusBeforePause);
+    updatePlaybackButtons();
+    releaseWaiter();
+}
+
+function togglePause() {
+    if (isPaused) resumeVisualization();
+    else pauseVisualization();
+}
+
+/**
+ * Step button:
+ * - Not running: starts the algorithm paused on its first operation.
+ * - Running: pauses (if needed) and advances exactly one operation.
+ */
+function stepVisualization() {
+    if (!isRunning) {
+        startVisualization({ startPaused: true });
+        return;
+    }
+    if (!isPaused) {
+        pauseVisualization();
+        return;
+    }
+    setStatus("Paused (stepping)");
+    releaseWaiter(); // Lets one compare/swap/write through, then waits again
 }
 
 function updateAlgorithmInfo() {
@@ -521,13 +631,14 @@ function updateSpeedLabel() {
     els.speedValue.textContent = SPEED_LABELS[els.speed.value];
 }
 
-async function startVisualization() {
+async function startVisualization({ startPaused = false } = {}) {
     if (isRunning) return;
 
     const algorithmKey = els.algorithm.value;
     const search = isSearch();
 
     isRunning = true;
+    isPaused = startPaused;
     const currentRun = ++runId;
     setControlsDisabled(true);
     resetStats();
@@ -540,8 +651,12 @@ async function startVisualization() {
             renderBars();
         }
 
-        setStatus(search ? "Searching..." : "Sorting...");
+        statusBeforePause = search ? "Searching..." : "Sorting...";
+        setStatus(isPaused ? "Paused (press Step to advance)" : statusBeforePause);
         const result = await ALGORITHMS[algorithmKey]();
+
+        isPaused = false;
+        updatePlaybackButtons();
 
         if (search) {
             setStatus(result.found ? `Found at index ${result.index}` : "Not found");
@@ -558,6 +673,7 @@ async function startVisualization() {
     } finally {
         if (currentRun === runId) {
             isRunning = false;
+            isPaused = false;
             setControlsDisabled(false);
         }
     }
@@ -566,6 +682,8 @@ async function startVisualization() {
 function resetVisualization() {
     runId++;               // Cancels any running animation
     isRunning = false;
+    isPaused = false;
+    releaseWaiter();       // Wake a paused algorithm so it sees the cancel and stops
     array = [...originalArray];
     renderBars();
     resetStats();
@@ -583,6 +701,22 @@ function handleAlgorithmChange() {
     resetVisualization();
 }
 
+/** Keyboard shortcuts: Space = pause/resume, Right arrow = step. */
+function handleKeydown(event) {
+    // Don't hijack keys while the user is using a form control
+    const tag = event.target.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "BUTTON" || tag === "TEXTAREA") return;
+
+    if (event.code === "Space") {
+        event.preventDefault();
+        if (isRunning) togglePause();
+        else startVisualization();
+    } else if (event.code === "ArrowRight") {
+        event.preventDefault();
+        stepVisualization();
+    }
+}
+
 /* =========================================================
    Event Listeners
    ========================================================= */
@@ -591,8 +725,11 @@ els.algorithm.addEventListener("change", handleAlgorithmChange);
 els.arraySize.addEventListener("input", handleSizeChange);
 els.speed.addEventListener("input", updateSpeedLabel);
 els.generateBtn.addEventListener("click", generateArray);
-els.startBtn.addEventListener("click", startVisualization);
+els.startBtn.addEventListener("click", () => startVisualization());
 els.resetBtn.addEventListener("click", resetVisualization);
+els.pauseBtn.addEventListener("click", togglePause);
+els.stepBtn.addEventListener("click", stepVisualization);
+document.addEventListener("keydown", handleKeydown);
 
 /* =========================================================
    Initialise
@@ -602,6 +739,7 @@ function init() {
     els.arraySizeValue.textContent = els.arraySize.value;
     updateSpeedLabel();
     updateAlgorithmInfo();
+    updatePlaybackButtons();
     generateArray();
 }
 
